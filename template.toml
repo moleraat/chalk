@@ -1,0 +1,19 @@
+[info]
+description = ""
+repo_link   = ""
+tags        = []
+builds_on   = []
+
+# Scores are integers [1, 10]. Higher always means more of that thing.
+# Uncomment and fill; an unscored project cannot be ranked.
+[attributes]
+# research_topic =   # in my realm of research interest
+# research_skill =   # develops research skills I want
+# research_value =   # how valuable is this research work
+# code_topic     =   # in my realm of technical interest
+# code_skill     =   # develops coding skills I want
+# code_value     =   # how valuable is this code tool
+# boundedness    =   # how well-scoped
+# quick_v1       =   # how fast to first working version
+# low_upkeep     =   # how easy to maintain once working
+# eagerness      =   # how excited am I to work on it
