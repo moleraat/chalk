@@ -1,0 +1,25 @@
+[info]
+description = "Replication of the BFF paper. Lay foundation for own mini-experiments"
+repo_link = "https://github.com/moleraat/bff"
+tags = [
+  "ALife",
+  "Paper Replication",
+  "Genetic Algorithms",
+  "Parser",
+  "Interpreter",
+]
+builds_on = []
+
+# Scores are integers [1, 10]. Higher always means more of that thing.
+# Uncomment and fill; an unscored project cannot be ranked.
+[attributes]
+research_topic = 8 # in my realm of research interest
+research_skill = 8 # develops research skills I want
+research_value = 6 # how valuable is this research work
+code_topic     = 7 # in my realm of technical interest
+code_skill     = 8 # develops coding skills I want
+code_value     = 6 # how valuable is this code tool
+boundedness    = 4 # how well-scoped
+quick_v1       = 6 # how fast to first working version
+low_upkeep     = 8 # how easy to maintain once working
+eagerness      = 8 # how excited am I to work on it

@@ -1,0 +1,19 @@
+[info]
+description = "Camera effects app, can be used for semi-anonymization"
+repo_link   = "https://github.com/moleraat/surmise"
+tags        = ["Image Processing", "Visualization", "Performance"]
+builds_on   = []
+
+# Scores are integers [1, 10]. Higher always means more of that thing.
+# Uncomment and fill; an unscored project cannot be ranked.
+[attributes]
+research_topic = 2 # in my realm of research interest
+research_skill = 4 # develops research skills I want
+research_value = 2 # how valuable is this research work
+code_topic     = 6 # in my realm of technical interest
+code_skill     = 8 # develops coding skills I want
+code_value     = 6 # how valuable is this code tool
+boundedness    = 5 # how well-scoped
+quick_v1       = 7 # how fast to first working version
+low_upkeep     = 7 # how easy to maintain once working
+eagerness      = 7 # how excited am I to work on it

@@ -1,0 +1,19 @@
+[info]
+description = "Bash permissions checker using angr and config defined profiles. Saves capability scans for CLI tools."
+repo_link   = "https://github.com/moleraat/typesh"
+tags        = ["AST", "Static Analysis", "Security", "Harness"]
+builds_on   = []
+
+# Scores are integers [1, 10]. Higher always means more of that thing.
+# Uncomment and fill; an unscored project cannot be ranked.
+[attributes]
+research_topic = 3 # in my realm of research interest
+research_skill = 4 # develops research skills I want
+research_value = 7 # how valuable is this research work
+code_topic     = 5 # in my realm of technical interest
+code_skill     = 5 # develops coding skills I want
+code_value     = 8 # how valuable is this code tool
+boundedness    = 3 # how well-scoped
+quick_v1       = 4 # how fast to first working version
+low_upkeep     = 3 # how easy to maintain once working
+eagerness      = 6 # how excited am I to work on it

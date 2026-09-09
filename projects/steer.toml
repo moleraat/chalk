@@ -1,0 +1,26 @@
+[info]
+description = "Transcribe a conversation, parse and extract key nodes in the conversation (branching questions, claims, reasoning). Embed these extractions and plot the direction of a conversation, color coded by contributor."
+repo_link = ""
+tags = [
+  "Audio Processing",
+  "Embedding",
+  "LLM",
+  "Parser",
+  "DAG",
+  "Visualization",
+]
+builds_on = []
+
+# Scores are integers [1, 10]. Higher always means more of that thing.
+# Uncomment and fill; an unscored project cannot be ranked.
+[attributes]
+research_topic = 6 # in my realm of research interest
+research_skill = 4 # develops research skills I want
+research_value = 6 # how valuable is this research work
+code_topic     = 7 # in my realm of technical interest
+code_skill     = 8 # develops coding skills I want
+code_value     = 7 # how valuable is this code tool
+boundedness    = 4 # how well-scoped
+quick_v1       = 3 # how fast to first working version
+low_upkeep     = 5 # how easy to maintain once working
+eagerness      = 8 # how excited am I to work on it

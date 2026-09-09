@@ -1,0 +1,19 @@
+[info]
+description = "Abstraction complexity metrics for code to flag potential refactorings. Could include flagging potential type casting misuse, parameters that move together, repeated iteration over same data, tangled imports, deep call chains, etc."
+repo_link   = ""
+tags        = ["AST", "Linting", "Static Analysis", "Complexity", "Code Quality"]
+builds_on   = []
+
+# Scores are integers [1, 10]. Higher always means more of that thing.
+# Uncomment and fill; an unscored project cannot be ranked.
+[attributes]
+research_topic = 3 # in my realm of research interest
+research_skill = 4 # develops research skills I want
+research_value = 7 # how valuable is this research work
+code_topic     = 5 # in my realm of technical interest
+code_skill     = 5 # develops coding skills I want
+code_value     = 7 # how valuable is this code tool
+boundedness    = 3 # how well-scoped
+quick_v1       = 6 # how fast to first working version
+low_upkeep     = 8 # how easy to maintain once working
+eagerness      = 4 # how excited am I to work on it

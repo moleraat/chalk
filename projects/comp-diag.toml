@@ -1,0 +1,19 @@
+[info]
+description = "Interactive DAG discussion tool for humans and agents. Figma-compatible diagram export as the source of truth for code structure, enforced at compile time. UML-like, maps to modules. Lets you discuss architecture with an agent and have the decision reflected programmatically in the code."
+repo_link   = ""
+tags        = ["LLM", "DAG", "Parser", "Comptime Checks"]
+builds_on   = []
+
+# Scores are integers [1, 10]. Higher always means more of that thing.
+# Uncomment and fill; an unscored project cannot be ranked.
+[attributes]
+research_topic = 3 # in my realm of research interest
+research_skill = 3 # develops research skills I want
+research_value = 6 # how valuable is this research work
+code_topic     = 7 # in my realm of technical interest
+code_skill     = 4 # develops coding skills I want
+code_value     = 7 # how valuable is this code tool
+boundedness    = 6 # how well-scoped
+quick_v1       = 5 # how fast to first working version
+low_upkeep     = 5 # how easy to maintain once working
+eagerness      = 5 # how excited am I to work on it
