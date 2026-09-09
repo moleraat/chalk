@@ -1,0 +1,16 @@
+# Weights: [0, 100]
+# Sum unconstrained, output is relative ranking.
+#
+# Every dimension reads higher is better.
+
+[weights]
+research_topic = 70
+research_skill = 50
+research_value = 30
+code_topic     = 40
+code_skill     = 80
+code_value     = 60
+boundedness    = 50
+quick_v1       = 80
+low_upkeep     = 50
+eagerness      = 60
