@@ -12,16 +12,24 @@ use crate::model::parser::{Config, Project, ProjectNames};
 fn main() {
     // Parse config file
     let config_path = Path::new("config.toml");
-    let raw_config = fs::read_to_string(config_path).expect("Invalid config path");
-    let config = Config::parse(&raw_config).expect("Invalid config file");
+    let Ok(raw_config) = fs::read_to_string(config_path) else {
+        eprintln!("Invalid config path");
+        return
+    };
+    let Ok(config) = Config::parse(&raw_config) else {
+        eprintln!("Invalid config file");
+        return
+    };
 
     // Get ProjectNames
     let project_path = Path::new("projects/");
-    let read_dirs = fs::read_dir(project_path)
-        .expect("Invalid project path")
-        .collect::<Vec<_>>();
+    let Ok(read_dirs_iter) = fs::read_dir(project_path) else {
+        eprintln!("Invalid project path");
+        return
+    };
+    let read_dirs = read_dirs_iter.collect::<Vec<_>>();
     let mut project_names = HashSet::<String>::new();
-    for dir_entry in read_dirs.iter() {
+    for dir_entry in &read_dirs {
         let project_entry = match dir_entry {
             Ok(p) => p,
             Err(e) => {
@@ -35,7 +43,7 @@ fn main() {
     let project_names = ProjectNames::new(project_names);
 
     // Parse project files, call llm
-    for dir_entry in read_dirs.into_iter() {
+    for dir_entry in read_dirs {
         let prompt = match handle_file(dir_entry, &config, &project_names) {
             Ok(p) => p,
             Err(e) => {
@@ -64,6 +72,6 @@ fn handle_file(
     let project = Project::parse(&raw_project, &project_name, config, project_names)?;
 
     let project = ProjectContext::enrich(project);
-    let prompt = project.create_prompt()?;
+    let prompt = project.create_prompt();
     Ok(prompt)
 }

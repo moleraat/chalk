@@ -8,7 +8,14 @@ mod units {
                 return Err("value must be 1..=10");
             }
 
-            Ok(Score(value as u8))
+            #[allow(
+                clippy::cast_sign_loss,
+                clippy::cast_possible_truncation,
+                reason = "value is already validated to be 1..=10"
+            )]
+            let value = u8::try_from(value)
+                .map_err(|_e| "should never happen: value validated to be 1..=10")?;
+            Ok(Self(value))
         }
     }
 
@@ -21,12 +28,19 @@ mod units {
                 return Err("value must be 0..=100");
             }
 
-            Ok(Weight(value as u8))
+            #[allow(
+                clippy::cast_sign_loss,
+                clippy::cast_possible_truncation,
+                reason = "value is already validated to be 0..=100"
+            )]
+            let value = u8::try_from(value)
+                .map_err(|_e| "should never happen: value validated to be 0..=100")?;
+            Ok(Self(value))
         }
     }
 
-    pub fn mult_score_weight(score: &Score, weight: &Weight) -> u32 {
-        (score.0 as u32).saturating_mul(weight.0 as u32)
+    pub fn mult_score_weight(score: Score, weight: Weight) -> u32 {
+        (u32::from(score.0)).saturating_mul(u32::from(weight.0))
     }
 }
 
@@ -68,7 +82,9 @@ pub mod parser {
 
             let attrs: Vec<&String> = attributes.keys().collect();
             for (i, w) in self.weights.keys().enumerate() {
-                if w.0 != *attrs[i] {
+                // if w.0 != *attrs[i] {
+                let a = attrs.get(i).ok_or("Failed to index attributes")?;
+                if w.0 != **a {
                     return Err("Attributes do not match");
                 }
             }
@@ -121,7 +137,7 @@ pub mod parser {
                 .collect();
             let attributes: BTreeMap<Attribute, Score> = attributes?;
 
-            let score = Self::score(&attributes, config);
+            let score = Self::score(&attributes, config)?;
 
             Ok(Self {
                 name,
@@ -139,13 +155,16 @@ pub mod parser {
             self.info.repo_link.as_deref()
         }
 
-        fn score(attributes: &BTreeMap<Attribute, Score>, config: &Config) -> u32 {
+        fn score(attributes: &BTreeMap<Attribute, Score>, config: &Config) -> Result<u32, String> {
             let mut total = 0u32;
             for (attribute, score) in attributes {
-                let weight = config.weights.get(attribute).unwrap();
-                total += mult_score_weight(score, weight);
+                let weight = config
+                    .weights
+                    .get(attribute)
+                    .ok_or("Should never happen: failed to get key")?;
+                total = total.saturating_add(mult_score_weight(*score, *weight));
             }
-            total
+            Ok(total)
         }
     }
 
@@ -190,14 +209,14 @@ pub mod parser {
 
     pub struct ProjectNames(HashSet<String>);
     impl ProjectNames {
-        pub fn new(names: HashSet<String>) -> Self {
+        pub const fn new(names: HashSet<String>) -> Self {
             Self(names)
         }
 
         fn mint(&self, name: &str) -> Result<ProjectName, String> {
             if self.0.contains(name) {
                 return Ok(ProjectName(name.to_string()));
-            };
+            }
 
             Err(format!("ProjectName {name} not found"))
         }
@@ -247,7 +266,7 @@ pub mod context {
             let Some(repo_link) = repo_link else {
                 return Err("No repo link".into());
             };
-            let Some(project_name) = repo_link.split("/").last() else {
+            let Some(project_name) = repo_link.split('/').next_back() else {
                 return Err("No project name in repo link".into());
             };
 
