@@ -20,6 +20,9 @@ since=$(date -u -d "$LOOKBACK_DAYS days ago" +%Y-%m-%d)
 
 branches=$(gh api repos/$OWNER/$REPO/branches --jq '.[].name')
 for branch in $branches; do
-    gh api "repos/$OWNER/$REPO/commits?sha=$branch&since=$since" \
-      --jq ".[] | {hash: .sha, branch: \"$branch\", date: .commit.author.date, subject: .commit.message, link: .html_url}"
+    hashes=$(gh api "repos/$OWNER/$REPO/commits?sha=$branch&since=$since" --jq '.[].sha')
+    for hash in $hashes; do
+        gh api "repos/$OWNER/$REPO/commits/$hash" \
+          --jq "{hash: .sha, branch: \"$branch\", date: .commit.author.date, subject: .commit.message, link: .html_url, additions: .stats.additions, deletions: .stats.deletions}"
+    done
 done
