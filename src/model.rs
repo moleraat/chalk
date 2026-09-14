@@ -50,6 +50,7 @@ pub mod parser {
 
     use super::units::{Score, Weight, mult_score_weight};
 
+    #[derive(Debug)]
     pub struct Config {
         weights: BTreeMap<Attribute, Weight>,
     }
@@ -215,7 +216,7 @@ pub mod parser {
 }
 
 pub mod context {
-    use super::parser::Project;
+    use super::parser::{Config, Project};
     use chrono::{DateTime, Utc};
     use serde::Deserialize;
     use serde::de::DeserializeOwned;
@@ -234,7 +235,7 @@ pub mod context {
     #[derive(Debug, Deserialize)]
     struct PrioItem {
         project_name: String, // todo: should validate attribute on parse back from model?
-        weight: u8,
+        priority: u8,
         justification: String,
     }
 
@@ -281,9 +282,15 @@ pub mod context {
             Self { context, output }
         }
 
-        pub fn create_prompt(bundles: &[Self]) -> String {
+        pub fn create_prompt(bundles: &[Self], config: &Config) -> String {
             let mut prompt = String::from(
                 "You are an agent working on an assignment that synthesizes user scored attributes, commit history, and information aggregated by per-project agents one level below you. Your job is to look into and across all bundled project information to recommend a priority list for what the user should work on next. If there is no history, then the project has not been started yet.\n\n",
+            );
+
+            let _ = write!(
+                prompt,
+                "Attribute weights (higher = more important to the user):
+                {config:#?}\n\n"
             );
 
             for project in bundles {
@@ -305,23 +312,25 @@ pub mod context {
             let _ = write!(
                 prompt,
                 "
-                \nUsing all project information, independently derive project weights (bounded [0, 100]) with justification. Use these derived scores to rank the projects in priority order. If this ranking disagrees with the user scores ranking, justify the new ranking using the semantic info.
+                \nUsing all project information, independently derive a priority score for each project (bounded [0, 100]), where a higher score means the project should be worked on sooner. The gap between two projects' scores should reflect how close a call it is — close scores mean it's a toss-up, a large gap means one is clearly more urgent. List `order` sorted from highest score to lowest.
+
+                Each project's `score` field reflects the user's original attribute scores combined with the attribute weights above; it is not on the same [0, 100] scale as the priority you derive here, so don't try to reconcile the two numerically. Instead, use the attribute weights above together with each project's SubAgent Opinions to judge whether the subagent's rederived attribute profile still supports the user's original ranking, and explain your priority in those terms.
 
                 Structure your output as json:
                 {{
                     \"order\": [
                         {{
                             \"project_name\": \"project_a\",
-                            \"weight\": 60,
+                            \"priority\": 60,
                             \"justification\": \"justification_a\"
                         }},
                         {{
                             \"project_name\": \"project_b\",
-                            \"weight\": 30,
+                            \"priority\": 30,
                             \"justification\": \"justification_b\"
                         }}
                     ],
-                    \"notes\": \"important notes to pass up to the user, reflections on the process\"
+                    \"notes\": \"important notes to pass up to the user, reflections on the process and prompts\"
                 }}
                 "
             );

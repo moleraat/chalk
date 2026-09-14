@@ -72,7 +72,7 @@ fn main() {
         projects.push(ProjectBundle::new(project, project_output));
     }
 
-    let prompt = ProjectBundle::create_prompt(&projects);
+    let prompt = ProjectBundle::create_prompt(&projects, &config);
     let prio_response = match handle_prompt(&api_key, &prompt) {
         Ok(p) => p,
         Err(e) => {
