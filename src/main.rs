@@ -31,7 +31,7 @@ fn main() {
         let project_entry = match dir_entry {
             Ok(p) => p,
             Err(e) => {
-                println!("Invalid directory entry: {e}");
+                eprintln!("Invalid directory entry: {e}");
                 continue;
             }
         };
@@ -50,7 +50,7 @@ fn main() {
         let project = match handle_file(dir_entry, &config, &project_names) {
             Ok(p) => p,
             Err(e) => {
-                println!("Invalid project: {e}");
+                eprintln!("Invalid project: {e}");
                 continue;
             }
         };
@@ -58,14 +58,14 @@ fn main() {
         let project_response = match handle_prompt(&api_key, &prompt) {
             Ok(p) => p,
             Err(e) => {
-                println!("Invalid response for project: {e}");
+                eprintln!("Invalid response for project: {e}");
                 continue;
             }
         };
         let project_output = match parse_model_output::<ProjectModelOutput>(&project_response) {
             Ok(p) => p,
             Err(e) => {
-                println!("Failed to parse project: {e}");
+                eprintln!("Failed to parse project: {e}");
                 continue;
             }
         };
@@ -76,14 +76,14 @@ fn main() {
     let prio_response = match handle_prompt(&api_key, &prompt) {
         Ok(p) => p,
         Err(e) => {
-            println!("Invalid response for prio: {e}");
+            eprintln!("Invalid response for prio: {e}");
             return;
         }
     };
     let prio_output = match parse_model_output::<PrioModelOutput>(&prio_response) {
         Ok(p) => p,
         Err(e) => {
-            println!("Failed to parse prio: {e}");
+            eprintln!("Failed to parse prio: {e}");
             return;
         }
     };
