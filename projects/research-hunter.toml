@@ -1,5 +1,5 @@
 [info]
-description = "Cron scraper to weekly report on relevant agent research and OSS."
+description = "Cron scraper to weekly report on relevant research and OSS. Collect reoccuring relevant researchers and organizations."
 repo_link   = ""
 tags        = ["LLM", "Cron", "Task Organization"]
 builds_on   = []
