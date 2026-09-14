@@ -46,24 +46,15 @@ mod units {
 
 pub mod parser {
     use serde::Deserialize;
-    use std::borrow::Borrow;
-    use std::collections::BTreeMap;
-    use std::collections::HashSet;
-    use std::error::Error;
+    use std::collections::{BTreeMap, HashSet};
 
     use super::units::{Score, Weight, mult_score_weight};
-
-    pub struct ProjectBundle {
-        project: Project,
-        score: u32,
-        repo_context: String,
-    }
 
     pub struct Config {
         weights: BTreeMap<Attribute, Weight>,
     }
     impl Config {
-        pub fn parse(text: &str) -> Result<Self, Box<dyn Error>> {
+        pub fn parse(text: &str) -> Result<Self, Box<dyn std::error::Error>> {
             let toml: ConfigToml = toml::from_str(text)?;
             let weights: Result<BTreeMap<Attribute, Weight>, &str> = toml
                 .weights
@@ -106,7 +97,7 @@ pub mod parser {
             name: &str,
             config: &Config,
             project_names: &ProjectNames,
-        ) -> Result<Self, Box<dyn Error>> {
+        ) -> Result<Self, Box<dyn std::error::Error>> {
             let name = project_names.mint(name)?;
 
             let toml: ProjectToml = toml::from_str(text)?;
@@ -198,7 +189,7 @@ pub mod parser {
 
     #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
     struct Attribute(String);
-    impl Borrow<str> for Attribute {
+    impl std::borrow::Borrow<str> for Attribute {
         fn borrow(&self) -> &str {
             &self.0
         }
@@ -227,12 +218,117 @@ pub mod context {
     use super::parser::Project;
     use chrono::{DateTime, Utc};
     use serde::Deserialize;
+    use serde::de::DeserializeOwned;
     use serde_json::from_str;
-    use std::error::Error;
-    use std::process::Command;
+    use std::fmt::Write as _;
 
     const HISTORY_SCRIPT: &str = "src/history.sh";
     const LOOKBACK_DAYS: &str = "7";
+
+    #[derive(Debug, Deserialize)]
+    pub struct PrioModelOutput {
+        order: Vec<PrioItem>,
+        notes: String,
+    }
+
+    #[derive(Debug, Deserialize)]
+    struct PrioItem {
+        project_name: String, // todo: should validate attribute on parse back from model?
+        weight: u8,
+        justification: String,
+    }
+
+    #[derive(Deserialize, Debug)]
+    pub struct ProjectModelOutput {
+        opinions: std::collections::BTreeMap<String, Opinion>, // todo: should validate attribute on parse back from model?
+        notes: String,
+    }
+
+    #[derive(Deserialize, Debug)]
+    struct Opinion {
+        reason: String,
+        score: u8,
+    }
+
+    pub fn parse_model_output<T: DeserializeOwned>(
+        raw_output: &str,
+    ) -> Result<T, Box<dyn std::error::Error>> {
+        let model_response = serde_json::from_str::<ModelResponse>(raw_output)?;
+        let contents: Vec<Content> = model_response
+            .steps
+            .into_iter()
+            .filter_map(|s| s.content)
+            .flatten()
+            .collect();
+
+        if contents.len() != 1 {
+            return Err("Expected only 1 content block in the response".into());
+        }
+        let content = contents
+            .first()
+            .ok_or("Should never happen, validated contents len")?;
+
+        let our_response = serde_json::from_str::<T>(&content.text)?;
+        Ok(our_response)
+    }
+
+    pub struct ProjectBundle {
+        context: ProjectContext,
+        output: ProjectModelOutput,
+    }
+    impl ProjectBundle {
+        pub const fn new(context: ProjectContext, output: ProjectModelOutput) -> Self {
+            Self { context, output }
+        }
+
+        pub fn create_prompt(bundles: &[Self]) -> String {
+            let mut prompt = String::from(
+                "You are an agent working on an assignment that synthesizes user scored attributes, commit history, and information aggregated by per-project agents one level below you. Your job is to look into and across all bundled project information to recommend a priority list for what the user should work on next. If there is no history, then the project has not been started yet.\n\n",
+            );
+
+            for project in bundles {
+                let _ = write!(
+                    prompt,
+                    "
+                    Project: {:#?}\n\
+                    History: {:#?}\n\
+                    SubAgent Opinions: {:#?}\n\
+                    SubAgent Notes: {:#?}\n\n\
+                    ",
+                    project.context.project,
+                    project.context.history,
+                    project.output.opinions,
+                    project.output.notes
+                );
+            }
+
+            let _ = write!(
+                prompt,
+                "
+                \nUsing all project information, independently derive project weights (bounded [0, 100]) with justification. Use these derived scores to rank the projects in priority order. If this ranking disagrees with the user scores ranking, justify the new ranking using the semantic info.
+
+                Structure your output as json:
+                {{
+                    \"order\": [
+                        {{
+                            \"project_name\": \"project_a\",
+                            \"weight\": 60,
+                            \"justification\": \"justification_a\"
+                        }},
+                        {{
+                            \"project_name\": \"project_b\",
+                            \"weight\": 30,
+                            \"justification\": \"justification_b\"
+                        }}
+                    ],
+                    \"notes\": \"important notes to pass up to the user, reflections on the process\"
+                }}
+                "
+            );
+
+            prompt
+        }
+    }
 
     #[derive(Debug)]
     pub struct ProjectContext {
@@ -247,21 +343,35 @@ pub mod context {
 
         pub fn create_prompt(&self) -> String {
             format!(
-                "You are an agent working on a project that synthesizes user scored attributes and commit history to recommend what the user should work on next. Your job is to look at this one project and synthesize information for an aggregation agent to use in order to recommend a priority list for what the user should work on next.
+                "You are an agent working on an assignment that synthesizes user scored attributes and commit history to recommend what the user should work on next. Your job is to look at this one project and synthesize information for an aggregation agent to use in order to recommend a priority list for what the user should work on next.
                 If there is no history, then the project has not been started yet.
 
                 Project: {:#?}
                 History: {:#?}
 
-                Using the commit information, derive the current activity level of the project.
-                Using the commit information, flag user scores with justification for why the score is accurate or needs adjusting.
+                Using the commit information, independently derive attribute scores (bounded [1, 10]). If it disagrees with the user score, justify your score using the semantic commit info.
+
+                Structure your output as json:
+                {{
+                    \"opinions\": {{
+                        \"attribute_a\": {{
+                            \"reason\": \"opinion_a\",
+                            \"score\": 4
+                        }},
+                        \"attribute_c\": {{
+                            \"reason\": \"opinion_c\",
+                            \"score\": 8
+                        }}
+                    }},
+                    \"notes\": \"important notes to pass up to aggregator agent\"
+                }}
                 ",
                 self.project,
                 self.history,
             )
         }
 
-        fn get_history(project: &Project) -> Result<Vec<Commit>, Box<dyn Error>> {
+        fn get_history(project: &Project) -> Result<Vec<Commit>, Box<dyn std::error::Error>> {
             let repo_link = project.repo_link();
             let Some(repo_link) = repo_link else {
                 return Err("No repo link".into());
@@ -270,7 +380,7 @@ pub mod context {
                 return Err("No project name in repo link".into());
             };
 
-            let output = Command::new(HISTORY_SCRIPT)
+            let output = std::process::Command::new(HISTORY_SCRIPT)
                 .args([project_name, LOOKBACK_DAYS])
                 .output()?;
             let output = String::from_utf8(output.stdout)?;
@@ -290,5 +400,28 @@ pub mod context {
         subject: String,
         date: DateTime<Utc>,
         link: String,
+        #[serde(flatten)]
+        delta: Delta,
+    }
+
+    #[derive(Deserialize, Debug)]
+    struct Delta {
+        additions: u32,
+        deletions: u32,
+    }
+
+    #[derive(Deserialize, Debug)]
+    struct ModelResponse {
+        steps: Vec<Step>,
+    }
+
+    #[derive(Deserialize, Debug)]
+    struct Step {
+        content: Option<Vec<Content>>,
+    }
+
+    #[derive(Deserialize, Debug)]
+    struct Content {
+        text: String,
     }
 }
