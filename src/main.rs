@@ -55,7 +55,7 @@ fn main() {
             }
         };
         let prompt = project.create_prompt();
-        let project_response = match handle_prompt(&api_key, &prompt) {
+        let project_response = match model::request::handle_prompt(&api_key, &prompt) {
             Ok(p) => p,
             Err(e) => {
                 eprintln!("Invalid response for project: {e}");
@@ -73,7 +73,7 @@ fn main() {
     }
 
     let prompt = ProjectBundle::create_prompt(&projects, &config);
-    let prio_response = match handle_prompt(&api_key, &prompt) {
+    let prio_response = match model::request::handle_prompt(&api_key, &prompt) {
         Ok(p) => p,
         Err(e) => {
             eprintln!("Invalid response for prio: {e}");
@@ -88,7 +88,7 @@ fn main() {
         }
     };
 
-    println!("{prio_output:?}");
+    dbg!(prio_output);
 
     // ping
 }
@@ -100,6 +100,7 @@ fn handle_file(
 ) -> Result<ProjectContext, Box<dyn std::error::Error>> {
     let project_entry = dir_entry?;
     let project_name = project_entry.file_name().to_string_lossy().into_owned();
+    println!("(⌐■_■) {project_name}");
 
     let raw_project = fs::read_to_string(project_entry.path())?;
     let project = Project::parse(&raw_project, &project_name, config, project_names)?;
@@ -108,23 +109,3 @@ fn handle_file(
     Ok(project)
 }
 
-fn handle_prompt(api_key: &str, prompt: &str) -> Result<String, Box<dyn std::error::Error>> {
-    const URL: &str = "https://generativelanguage.googleapis.com/v1beta/interactions";
-    const CONTENT_HEADER: &str = "Content-Type: application/json";
-    let api_header = format!("x-goog-api-key: {api_key}");
-    let prompt = serde_json::json!({"model": "gemini-3.8-flash", "input": prompt});
-
-    let response = std::process::Command::new("curl")
-        .arg("-X")
-        .arg("POST")
-        .arg(URL)
-        .arg("-H")
-        .arg(api_header)
-        .arg("-H")
-        .arg(CONTENT_HEADER)
-        .arg("-d")
-        .arg(prompt.to_string())
-        .output()?;
-    let response = String::from_utf8(response.stdout)?;
-    Ok(response)
-}
