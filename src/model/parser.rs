@@ -1,54 +1,9 @@
-mod units {
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-    pub struct Score(u8);
-    impl TryFrom<i64> for Score {
-        type Error = &'static str;
-        fn try_from(value: i64) -> Result<Self, Self::Error> {
-            if !(1..=10).contains(&value) {
-                return Err("value must be 1..=10");
-            }
-
-            #[allow(
-                clippy::cast_sign_loss,
-                clippy::cast_possible_truncation,
-                reason = "value is already validated to be 1..=10"
-            )]
-            let value = u8::try_from(value)
-                .map_err(|_e| "should never happen: value validated to be 1..=10")?;
-            Ok(Self(value))
-        }
-    }
-
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-    pub struct Weight(u8);
-    impl TryFrom<i64> for Weight {
-        type Error = &'static str;
-        fn try_from(value: i64) -> Result<Self, Self::Error> {
-            if !(0..=100).contains(&value) {
-                return Err("value must be 0..=100");
-            }
-
-            #[allow(
-                clippy::cast_sign_loss,
-                clippy::cast_possible_truncation,
-                reason = "value is already validated to be 0..=100"
-            )]
-            let value = u8::try_from(value)
-                .map_err(|_e| "should never happen: value validated to be 0..=100")?;
-            Ok(Self(value))
-        }
-    }
-
-    pub fn mult_score_weight(score: Score, weight: Weight) -> u32 {
-        (u32::from(score.0)).saturating_mul(u32::from(weight.0))
-    }
-}
-
 use serde::Deserialize;
 use std::collections::{BTreeMap, HashSet};
 
 use units::{Score, Weight, mult_score_weight};
 
+// parsed config.toml formula weights
 #[derive(Debug)]
 pub struct Config {
     weights: BTreeMap<Attribute, Weight>,
@@ -84,6 +39,7 @@ impl Config {
     }
 }
 
+// parsed {project}.toml user information
 #[derive(Debug)]
 pub struct Project {
     name: ProjectName,
@@ -210,5 +166,51 @@ impl ProjectNames {
         }
 
         Err(format!("ProjectName {name} not found"))
+    }
+}
+
+mod units {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+    pub struct Score(u8);
+    impl TryFrom<i64> for Score {
+        type Error = &'static str;
+        fn try_from(value: i64) -> Result<Self, Self::Error> {
+            if !(1..=10).contains(&value) {
+                return Err("value must be 1..=10");
+            }
+
+            #[allow(
+                clippy::cast_sign_loss,
+                clippy::cast_possible_truncation,
+                reason = "value is already validated to be 1..=10"
+            )]
+            let value = u8::try_from(value)
+                .map_err(|_e| "should never happen: value validated to be 1..=10")?;
+            Ok(Self(value))
+        }
+    }
+
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+    pub struct Weight(u8);
+    impl TryFrom<i64> for Weight {
+        type Error = &'static str;
+        fn try_from(value: i64) -> Result<Self, Self::Error> {
+            if !(0..=100).contains(&value) {
+                return Err("value must be 0..=100");
+            }
+
+            #[allow(
+                clippy::cast_sign_loss,
+                clippy::cast_possible_truncation,
+                reason = "value is already validated to be 0..=100"
+            )]
+            let value = u8::try_from(value)
+                .map_err(|_e| "should never happen: value validated to be 0..=100")?;
+            Ok(Self(value))
+        }
+    }
+
+    pub fn mult_score_weight(score: Score, weight: Weight) -> u32 {
+        (u32::from(score.0)).saturating_mul(u32::from(weight.0))
     }
 }

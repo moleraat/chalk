@@ -9,31 +9,7 @@ const OWNER: &str = "moleraat";
 const LOOKBACK_DAYS: i64 = 7;
 const FALLBACK_COMMIT_COUNT: u32 = 10;
 
-#[derive(Debug, Deserialize)]
-pub struct PrioModelOutput {
-    order: Vec<PrioItem>,
-    notes: String,
-}
-
-#[derive(Debug, Deserialize)]
-struct PrioItem {
-    project_name: String, // todo: should validate attribute on parse back from model?
-    priority: u8,
-    justification: String,
-}
-
-#[derive(Deserialize, Debug)]
-pub struct ProjectModelOutput {
-    opinions: std::collections::BTreeMap<String, Opinion>, // todo: should validate attribute on parse back from model?
-    notes: String,
-}
-
-#[derive(Deserialize, Debug)]
-struct Opinion {
-    reason: String,
-    score: u8,
-}
-
+// prio prompt and response ----------------------------------------------------
 pub struct ProjectBundle {
     context: ProjectContext,
     output: ProjectModelOutput,
@@ -111,6 +87,7 @@ impl ProjectBundle {
     }
 }
 
+// projct prompt and response --------------------------------------------------
 #[derive(Debug)]
 pub struct ProjectContext {
     project: Project,
@@ -225,6 +202,34 @@ impl ProjectContext {
     }
 }
 
+// parsed prio model response
+#[derive(Debug, Deserialize)]
+pub struct PrioModelOutput {
+    order: Vec<PrioItem>,
+    notes: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct PrioItem {
+    project_name: String, // todo: should validate attribute on parse back from model?
+    priority: u8,
+    justification: String,
+}
+
+// parsed project model response
+#[derive(Deserialize, Debug)]
+pub struct ProjectModelOutput {
+    opinions: std::collections::BTreeMap<String, Opinion>, // todo: should validate attribute on parse back from model?
+    notes: String,
+}
+
+#[derive(Deserialize, Debug)]
+struct Opinion {
+    reason: String,
+    score: u8,
+}
+
+// gh structs ------------------------------------------------------------------
 #[derive(Deserialize, Debug)]
 struct Commit {
     hash: String,

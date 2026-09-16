@@ -12,7 +12,7 @@ pub fn handle_prompt(api_key: &str, prompt: &str) -> Result<String, Box<dyn std:
     loop {
         println!("\t˗ˏˋ꒰ ✉︎ ꒱ˎˊ˗ to model...");
         attempt = attempt.saturating_add(1);
-        let (status, body) = curl_request(api_key, prompt)?;
+        let (status, body) = model_request(api_key, prompt)?;
 
         if status < 400 {
             return Ok(body);
@@ -29,7 +29,7 @@ pub fn handle_prompt(api_key: &str, prompt: &str) -> Result<String, Box<dyn std:
     }
 }
 
-fn curl_request(api_key: &str, prompt: &str) -> Result<(u16, String), Box<dyn std::error::Error>> {
+fn model_request(api_key: &str, prompt: &str) -> Result<(u16, String), Box<dyn std::error::Error>> {
     const URL: &str = "https://openrouter.ai/api/v1/chat/completions";
     const CONTENT_HEADER: &str = "Content-Type: application/json";
     let api_header = format!("Authorization: Bearer {api_key}");
