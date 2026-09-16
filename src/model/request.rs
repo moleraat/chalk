@@ -10,7 +10,7 @@ pub fn handle_prompt(api_key: &str, prompt: &str) -> Result<String, Box<dyn std:
 
     let mut attempt: u32 = 0;
     loop {
-        println!("\t˗ˏˋ ꒰ ✉︎ ꒱ ˎˊ˗ to model...");
+        println!("\t˗ˏˋ꒰ ✉︎ ꒱ˎˊ˗ to model...");
         attempt = attempt.saturating_add(1);
         let (status, body) = curl_request(api_key, prompt)?;
 

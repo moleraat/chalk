@@ -64,20 +64,20 @@ fn main() {
                 continue;
             }
         };
-        
+
         project_usage.insert(project.project_name().to_string(), usage);
         projects.push(ProjectBundle::new(project, project_output));
     }
 
     println!(" (╭ರ_•́) prio time");
-    let (prio_output, prio_usage) = match ProjectBundle::request_priority(&projects, &config, &api_key)
-    {
-        Ok(p) => p,
-        Err(e) => {
-            eprintln!("Failed to get priority: {e}");
-            return;
-        }
-    };
+    let (prio_output, prio_usage) =
+        match ProjectBundle::request_priority(&projects, &config, &api_key) {
+            Ok(p) => p,
+            Err(e) => {
+                eprintln!("Failed to get priority: {e}");
+                return;
+            }
+        };
 
     dbg!(prio_output);
     print_usage_summary(&project_usage, &prio_usage);
@@ -99,7 +99,12 @@ fn handle_file(
     Ok(project)
 }
 
-fn print_usage_summary(project_usage: &std::collections::BTreeMap<String, Usage>, prio_usage: &Usage) {
+fn print_usage_summary(
+    project_usage: &std::collections::BTreeMap<String, Usage>,
+    prio_usage: &Usage,
+) {
+    println!("\n(っ$_$)╮=͟͟͞͞💸 usage summary");
+
     let (p_prompt, p_reasoning, p_total, p_cost) = project_usage.values().fold(
         (0u32, 0u32, 0u32, 0f64),
         |(prompt, reasoning, total, cost), u| {
@@ -111,21 +116,40 @@ fn print_usage_summary(project_usage: &std::collections::BTreeMap<String, Usage>
             )
         },
     );
-    let prio_reasoning = prio_usage.completion_tokens_details.reasoning_tokens;
+    let p_output = p_total.saturating_sub(p_prompt).saturating_sub(p_reasoning);
+    let (p_prompt_percent, p_reasoning_percent, p_output_percent) = (
+        (f64::from(p_prompt) / f64::from(p_total)) * 100.0,
+        (f64::from(p_reasoning) / f64::from(p_total)) * 100.0,
+        (f64::from(p_output) / f64::from(p_total)) * 100.0,
+    );
+    println!(
+        "\tprojects: {p_total} tokens | {p_prompt_percent:.1}% prompt, {p_reasoning_percent:.1}% reasoning, {p_output_percent:.1}% output | ${p_cost:.4}"
+    );
 
-    println!("\n(っ$_$)╮=͟͟͞͞💸 usage summary");
-    println!(
-        "\tprojects  prompt={p_prompt} reasoning={p_reasoning} total={p_total} cost=${p_cost:.4}"
+    let (prio_prompt, prio_reasoning, prio_total, prio_cost) = (
+        prio_usage.prompt_tokens,
+        prio_usage.completion_tokens_details.reasoning_tokens,
+        prio_usage.total_tokens,
+        prio_usage.cost,
+    );
+    let prio_output = prio_total
+        .saturating_sub(prio_prompt)
+        .saturating_sub(prio_reasoning);
+    let (prio_prompt_percent, prio_reasoning_percent, prio_output_percent) = (
+        (f64::from(prio_prompt) / f64::from(prio_total)) * 100.0,
+        (f64::from(prio_reasoning) / f64::from(prio_total)) * 100.0,
+        (f64::from(prio_output) / f64::from(prio_total)) * 100.0,
     );
     println!(
-        "\tprio      prompt={} reasoning={prio_reasoning} total={} cost=${:.4}",
-        prio_usage.prompt_tokens, prio_usage.total_tokens, prio_usage.cost
+        "\tprio: {prio_total} tokens | {prio_prompt_percent:.1}% prompt, {prio_reasoning_percent:.1}% reasoning, {prio_output_percent:.1}% output | ${prio_cost:.4}"
+    );
+
+    let (project_percent, prio_percent) = (
+        (f64::from(p_total) / f64::from(p_total.saturating_add(prio_total))) * 100.0,
+        (f64::from(prio_total) / f64::from(p_total.saturating_add(prio_total))) * 100.0,
     );
     println!(
-        "\ttotal     prompt={} reasoning={} total={} cost=${:.4}",
-        p_prompt.saturating_add(prio_usage.prompt_tokens),
-        p_reasoning.saturating_add(prio_reasoning),
-        p_total.saturating_add(prio_usage.total_tokens),
-        p_cost.add(prio_usage.cost)
+        "\ttotal: {project_percent:.1}% projects, {prio_percent:.1}% prio | ${:.4}",
+        p_cost.add(prio_cost)
     );
 }
