@@ -3,10 +3,9 @@ mod model;
 use std::fs;
 use std::ops::Add;
 
-use crate::model::context::{
-    PrioModelOutput, ProjectBundle, ProjectContext, ProjectModelOutput, Usage, parse_model_output,
-};
+use crate::model::context::{PrioModelOutput, ProjectBundle, ProjectContext, ProjectModelOutput};
 use crate::model::parser::{Config, Project, ProjectNames};
+use crate::model::request::{Usage, parse_model_output};
 
 const API_KEY_ENV_VAR: &str = "OPENROUTER_API_KEY";
 

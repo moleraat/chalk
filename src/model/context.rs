@@ -33,23 +33,6 @@ struct Opinion {
     score: u8,
 }
 
-pub fn parse_model_output<T: DeserializeOwned>(
-    raw_output: &str,
-) -> Result<(T, Usage), Box<dyn std::error::Error>> {
-    let model_response = serde_json::from_str::<ModelResponse>(raw_output)?;
-    if model_response.choices.len() != 1 {
-        return Err("Expected only 1 choice in the response".into());
-    }
-    let choice = model_response
-        .choices
-        .into_iter()
-        .next()
-        .ok_or("Should never happen, validated choices len")?;
-
-    let our_response = serde_json::from_str::<T>(&choice.message.content)?;
-    Ok((our_response, model_response.usage))
-}
-
 pub struct ProjectBundle {
     context: ProjectContext,
     output: ProjectModelOutput,
@@ -274,31 +257,3 @@ struct GhAuthor {
     date: DateTime<Utc>,
 }
 
-#[derive(Deserialize, Debug)]
-struct ModelResponse {
-    choices: Vec<Choice>,
-    usage: Usage,
-}
-
-#[derive(Deserialize, Debug)]
-pub struct Usage {
-    pub prompt_tokens: u32,
-    pub total_tokens: u32,
-    pub cost: f64,
-    pub completion_tokens_details: CompletionTokensDetails,
-}
-
-#[derive(Deserialize, Debug)]
-pub struct CompletionTokensDetails {
-    pub reasoning_tokens: u32,
-}
-
-#[derive(Deserialize, Debug)]
-struct Choice {
-    message: Message,
-}
-
-#[derive(Deserialize, Debug)]
-struct Message {
-    content: String,
-}

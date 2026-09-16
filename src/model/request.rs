@@ -1,3 +1,6 @@
+use serde::Deserialize;
+use serde::de::DeserializeOwned;
+
 const MAX_ATTEMPTS: u32 = 5;
 const REQUEST_INTERVAL_S: u64 = 3;
 
@@ -23,21 +26,6 @@ pub fn handle_prompt(api_key: &str, prompt: &str) -> Result<String, Box<dyn std:
             "\t.‸. failed with {status}, retrying in {delay_ms}ms ({attempt}/{MAX_ATTEMPTS})"
         );
         std::thread::sleep(std::time::Duration::from_millis(delay_ms));
-    }
-}
-
-// 0 covers curl transport failures (DNS, connection refused, etc.), where `%{http_code}` reports "000".
-const fn retryable(status: u16) -> bool {
-    status == 429 || status == 0 || (status >= 500 && status < 600)
-}
-
-const fn backoff_delay_ms(attempt: u32) -> u64 {
-    match attempt {
-        1 => 500,
-        2 => 1_000,
-        3 => 2_000,
-        4 => 4_000,
-        _ => 8_000,
     }
 }
 
@@ -69,4 +57,65 @@ fn curl_request(api_key: &str, prompt: &str) -> Result<(u16, String), Box<dyn st
         .ok_or("Malformed curl output: missing status code")?;
     let status: u16 = status.trim().parse()?;
     Ok((status, body.to_string()))
+}
+
+// 0 covers curl transport failures (DNS, connection refused, etc.), where `%{http_code}` reports "000".
+const fn retryable(status: u16) -> bool {
+    status == 429 || status == 0 || (status >= 500 && status < 600)
+}
+
+const fn backoff_delay_ms(attempt: u32) -> u64 {
+    match attempt {
+        1 => 500,
+        2 => 1_000,
+        3 => 2_000,
+        4 => 4_000,
+        _ => 8_000,
+    }
+}
+
+pub fn parse_model_output<T: DeserializeOwned>(
+    raw_output: &str,
+) -> Result<(T, Usage), Box<dyn std::error::Error>> {
+    let model_response = serde_json::from_str::<ModelResponse>(raw_output)?;
+    if model_response.choices.len() != 1 {
+        return Err("Expected only 1 choice in the response".into());
+    }
+    let choice = model_response
+        .choices
+        .into_iter()
+        .next()
+        .ok_or("Should never happen, validated choices len")?;
+
+    let our_response = serde_json::from_str::<T>(&choice.message.content)?;
+    Ok((our_response, model_response.usage))
+}
+
+#[derive(Deserialize, Debug)]
+struct ModelResponse {
+    choices: Vec<Choice>,
+    usage: Usage,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct Usage {
+    pub prompt_tokens: u32,
+    pub total_tokens: u32,
+    pub cost: f64,
+    pub completion_tokens_details: CompletionTokensDetails,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct CompletionTokensDetails {
+    pub reasoning_tokens: u32,
+}
+
+#[derive(Deserialize, Debug)]
+struct Choice {
+    message: Message,
+}
+
+#[derive(Deserialize, Debug)]
+struct Message {
+    content: String,
 }
