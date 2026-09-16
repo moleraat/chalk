@@ -6,6 +6,7 @@ use std::fmt::Write as _;
 
 const OWNER: &str = "moleraat";
 const LOOKBACK_DAYS: i64 = 7;
+const FALLBACK_COMMIT_COUNT: u32 = 10;
 
 #[derive(Debug, Deserialize)]
 pub struct PrioModelOutput {
@@ -133,7 +134,7 @@ impl ProjectContext {
     pub fn create_prompt(&self) -> String {
         format!(
             "You are an agent working on an assignment that synthesizes user scored attributes and commit history to recommend what the user should work on next. Your job is to look at this one project and synthesize information for an aggregation agent to use in order to recommend a priority list for what the user should work on next.
-            If there is no history, then the project has not been started yet.
+            History is either activity from past {LOOKBACK_DAYS} days, or the last {FALLBACK_COMMIT_COUNT} commits before that window. If there is no history, then the project has not been started yet.
 
             Project: {:#?}
             History: {:#?}
@@ -182,22 +183,40 @@ impl ProjectContext {
                 branch.name
             ))?;
             for summary in summaries {
-                let detail: GhCommitDetail =
-                    gh_api(&format!("repos/{OWNER}/{repo}/commits/{}", summary.sha))?;
-                commits.push(Commit {
-                    hash: detail.sha,
-                    branch: branch.name.clone(),
-                    subject: detail.commit.message,
-                    date: detail.commit.author.date,
-                    link: detail.html_url,
-                    delta: Delta {
-                        additions: detail.stats.additions,
-                        deletions: detail.stats.deletions,
-                    },
-                });
+                commits.push(Self::fetch_commit(repo, &branch.name, &summary.sha)?);
             }
         }
+
+        // if inactive project, grab old commits
+        if commits.is_empty() {
+            let summaries: Vec<GhCommitSummary> = gh_api(&format!(
+                "repos/{OWNER}/{repo}/commits?per_page={FALLBACK_COMMIT_COUNT}"
+            ))?;
+            for summary in summaries {
+                commits.push(Self::fetch_commit(repo, "default", &summary.sha)?);
+            }
+        }
+
         Ok(commits)
+    }
+
+    fn fetch_commit(
+        repo: &str,
+        branch: &str,
+        sha: &str,
+    ) -> Result<Commit, Box<dyn std::error::Error>> {
+        let detail: GhCommitDetail = gh_api(&format!("repos/{OWNER}/{repo}/commits/{sha}"))?;
+        Ok(Commit {
+            hash: detail.sha,
+            branch: branch.to_string(),
+            subject: detail.commit.message,
+            date: detail.commit.author.date,
+            link: detail.html_url,
+            delta: Delta {
+                additions: detail.stats.additions,
+                deletions: detail.stats.deletions,
+            },
+        })
     }
 }
 
