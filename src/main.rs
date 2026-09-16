@@ -3,9 +3,9 @@ mod model;
 use std::fs;
 use std::ops::Add;
 
-use crate::model::context::{PrioModelOutput, ProjectBundle, ProjectContext, ProjectModelOutput};
+use crate::model::context::{ProjectBundle, ProjectContext};
 use crate::model::parser::{Config, Project, ProjectNames};
-use crate::model::request::{Usage, parse_model_output};
+use crate::model::request::Usage;
 
 const API_KEY_ENV_VAR: &str = "OPENROUTER_API_KEY";
 
@@ -57,42 +57,24 @@ fn main() {
                 continue;
             }
         };
-        let prompt = project.create_prompt();
-        let project_response = match model::request::handle_prompt(&api_key, &prompt) {
+        let (project_output, usage) = match project.request_opinion(&api_key) {
             Ok(p) => p,
             Err(e) => {
-                eprintln!("Invalid response for project: {e}");
+                eprintln!("Failed to get opinion for project: {e}");
                 continue;
             }
         };
-        let (project_output, usage) = match parse_model_output::<ProjectModelOutput>(
-            &project_response,
-        ) {
-            Ok(p) => p,
-            Err(e) => {
-                eprintln!("Failed to parse project: {e}");
-                eprintln!("{project_response}");
-                continue;
-            }
-        };
+        
         project_usage.insert(project.project_name().to_string(), usage);
         projects.push(ProjectBundle::new(project, project_output));
     }
 
-    let prompt = ProjectBundle::create_prompt(&projects, &config);
     println!(" (╭ರ_•́) prio time");
-    let prio_response = match model::request::handle_prompt(&api_key, &prompt) {
+    let (prio_output, prio_usage) = match ProjectBundle::request_priority(&projects, &config, &api_key)
+    {
         Ok(p) => p,
         Err(e) => {
-            eprintln!("Invalid response for prio: {e}");
-            return;
-        }
-    };
-    let (prio_output, prio_usage) = match parse_model_output::<PrioModelOutput>(&prio_response) {
-        Ok(p) => p,
-        Err(e) => {
-            eprintln!("Failed to parse prio: {e}");
-            eprintln!("{prio_response}");
+            eprintln!("Failed to get priority: {e}");
             return;
         }
     };

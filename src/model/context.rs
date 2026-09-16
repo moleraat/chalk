@@ -1,4 +1,5 @@
 use super::parser::{Config, Project};
+use super::request::{self, Usage};
 use chrono::{DateTime, Duration, Utc};
 use serde::Deserialize;
 use serde::de::DeserializeOwned;
@@ -40,6 +41,17 @@ pub struct ProjectBundle {
 impl ProjectBundle {
     pub const fn new(context: ProjectContext, output: ProjectModelOutput) -> Self {
         Self { context, output }
+    }
+
+    pub fn request_priority(
+        bundles: &[Self],
+        config: &Config,
+        api_key: &str,
+    ) -> Result<(PrioModelOutput, Usage), Box<dyn std::error::Error>> {
+        let prompt = Self::create_prompt(bundles, config);
+        let response = request::handle_prompt(api_key, &prompt)?;
+        request::parse_model_output(&response)
+            .map_err(|e| format!("{e}\nraw response: {response}").into())
     }
 
     pub fn create_prompt(bundles: &[Self], config: &Config) -> String {
@@ -112,6 +124,16 @@ impl ProjectContext {
 
     pub fn project_name(&self) -> &str {
         self.project.project_name()
+    }
+
+    pub fn request_opinion(
+        &self,
+        api_key: &str,
+    ) -> Result<(ProjectModelOutput, Usage), Box<dyn std::error::Error>> {
+        let prompt = self.create_prompt();
+        let response = request::handle_prompt(api_key, &prompt)?;
+        request::parse_model_output(&response)
+            .map_err(|e| format!("{e}\nraw response: {response}").into())
     }
 
     pub fn create_prompt(&self) -> String {
