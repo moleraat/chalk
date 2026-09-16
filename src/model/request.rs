@@ -1,8 +1,5 @@
 const MAX_ATTEMPTS: u32 = 5;
-
-// Free tier caps generate_content at 5 requests/min; pace every call so we
-// stay under that instead of reacting to 429s after the fact.
-const REQUEST_INTERVAL_S: u64 = 15;
+const REQUEST_INTERVAL_S: u64 = 3;
 
 pub fn handle_prompt(api_key: &str, prompt: &str) -> Result<String, Box<dyn std::error::Error>> {
     println!("\t(ᴗ˳ᴗ)ᶻ𝗓𐰁 for {REQUEST_INTERVAL_S}s");
@@ -10,6 +7,7 @@ pub fn handle_prompt(api_key: &str, prompt: &str) -> Result<String, Box<dyn std:
 
     let mut attempt: u32 = 0;
     loop {
+        println!("\t˗ˏˋ ꒰ ✉︎ ꒱ ˎˊ˗ to model...");
         attempt = attempt.saturating_add(1);
         let (status, body) = curl_request(api_key, prompt)?;
 
@@ -22,7 +20,7 @@ pub fn handle_prompt(api_key: &str, prompt: &str) -> Result<String, Box<dyn std:
 
         let delay_ms = backoff_delay_ms(attempt);
         eprintln!(
-            "\tRequest failed with status {status}, retrying in {delay_ms}ms (attempt {attempt}/{MAX_ATTEMPTS})"
+            "\t.‸. failed with {status}, retrying in {delay_ms}ms ({attempt}/{MAX_ATTEMPTS})"
         );
         std::thread::sleep(std::time::Duration::from_millis(delay_ms));
     }
@@ -47,7 +45,11 @@ fn curl_request(api_key: &str, prompt: &str) -> Result<(u16, String), Box<dyn st
     const URL: &str = "https://openrouter.ai/api/v1/chat/completions";
     const CONTENT_HEADER: &str = "Content-Type: application/json";
     let api_header = format!("Authorization: Bearer {api_key}");
-    let payload = serde_json::json!({"model": "gemini-3.8-flash", "messages": [{"role": "user", "content": prompt}]});
+    let payload = serde_json::json!({
+        "model": "qwen/qwen3.7-flash",
+        "messages": [{"role": "user", "content": prompt}],
+        "response_format": {"type": "json_object"}
+    });
 
     let output = std::process::Command::new("curl")
         .arg(URL)

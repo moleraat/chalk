@@ -32,36 +32,21 @@ struct Opinion {
     score: u8,
 }
 
-// in case the model puts the json in markdown fences, would break parsing
-fn strip_markdown_fence(text: &str) -> &str {
-    let text = text.trim();
-    let text = text
-        .strip_prefix("```json")
-        .or_else(|| text.strip_prefix("```"))
-        .unwrap_or(text)
-        .trim_start();
-    text.strip_suffix("```").unwrap_or(text).trim_end()
-}
-
 pub fn parse_model_output<T: DeserializeOwned>(
     raw_output: &str,
 ) -> Result<T, Box<dyn std::error::Error>> {
     let model_response = serde_json::from_str::<ModelResponse>(raw_output)?;
-    let contents: Vec<Content> = model_response
-        .steps
-        .into_iter()
-        .filter_map(|s| s.content)
-        .flatten()
-        .collect();
-
-    if contents.len() != 1 {
-        return Err("Expected only 1 content block in the response".into());
+    println!("\t(っ$_$)╮=͟͟͞͞💸 {:#?}", model_response.usage);
+    if model_response.choices.len() != 1 {
+        return Err("Expected only 1 choice in the response".into());
     }
-    let content = contents
-        .first()
-        .ok_or("Should never happen, validated contents len")?;
+    let choice = model_response
+        .choices
+        .into_iter()
+        .next()
+        .ok_or("Should never happen, validated choices len")?;
 
-    let our_response = serde_json::from_str::<T>(strip_markdown_fence(&content.text))?;
+    let our_response = serde_json::from_str::<T>(&choice.message.content)?;
     Ok(our_response)
 }
 
@@ -269,15 +254,29 @@ struct GhAuthor {
 
 #[derive(Deserialize, Debug)]
 struct ModelResponse {
-    steps: Vec<Step>,
+    choices: Vec<Choice>,
+    usage: Usage,
 }
 
 #[derive(Deserialize, Debug)]
-struct Step {
-    content: Option<Vec<Content>>,
+struct Usage {
+    prompt_tokens: u32,
+    total_tokens: u32,
+    cost: f64,
+    completion_tokens_details: CompletionTokensDetails,
 }
 
 #[derive(Deserialize, Debug)]
-struct Content {
-    text: String,
+struct CompletionTokensDetails {
+    reasoning_tokens: u32,
+}
+
+#[derive(Deserialize, Debug)]
+struct Choice {
+    message: Message,
+}
+
+#[derive(Deserialize, Debug)]
+struct Message {
+    content: String,
 }

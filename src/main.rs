@@ -7,6 +7,8 @@ use crate::model::context::{
 };
 use crate::model::parser::{Config, Project, ProjectNames};
 
+const API_KEY_ENV_VAR: &str = "OPENROUTER_API_KEY";
+
 fn main() {
     // Parse config file
     let config_path = std::path::Path::new("config.toml");
@@ -41,8 +43,8 @@ fn main() {
     let project_names = ProjectNames::new(project_names);
 
     // Parse project files, call llm
-    let Ok(api_key) = std::env::var("MODEL_API_KEY") else {
-        eprintln!("MODEL_API_KEY not found");
+    let Ok(api_key) = std::env::var(API_KEY_ENV_VAR) else {
+        eprintln!("{API_KEY_ENV_VAR} not found");
         return;
     };
     let mut projects = Vec::<ProjectBundle>::new();
@@ -66,6 +68,7 @@ fn main() {
             Ok(p) => p,
             Err(e) => {
                 eprintln!("Failed to parse project: {e}");
+                eprintln!("{project_response}");
                 continue;
             }
         };
@@ -73,6 +76,7 @@ fn main() {
     }
 
     let prompt = ProjectBundle::create_prompt(&projects, &config);
+    println!(" (╭ರ_•́) prio time");
     let prio_response = match model::request::handle_prompt(&api_key, &prompt) {
         Ok(p) => p,
         Err(e) => {
@@ -84,6 +88,7 @@ fn main() {
         Ok(p) => p,
         Err(e) => {
             eprintln!("Failed to parse prio: {e}");
+            eprintln!("{prio_response}");
             return;
         }
     };
