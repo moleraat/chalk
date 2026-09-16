@@ -1,12 +1,11 @@
 use super::parser::{Config, Project};
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Duration, Utc};
 use serde::Deserialize;
 use serde::de::DeserializeOwned;
-use serde_json::from_str;
 use std::fmt::Write as _;
 
-const HISTORY_SCRIPT: &str = "src/history.sh";
-const LOOKBACK_DAYS: &str = "7";
+const OWNER: &str = "moleraat";
+const LOOKBACK_DAYS: i64 = 7;
 
 #[derive(Debug, Deserialize)]
 pub struct PrioModelOutput {
@@ -178,18 +177,37 @@ impl ProjectContext {
         let Some(repo_link) = repo_link else {
             return Err("No repo link".into());
         };
-        let Some(project_name) = repo_link.split('/').next_back() else {
+        let Some(repo) = repo_link.split('/').next_back() else {
             return Err("No project name in repo link".into());
         };
 
-        let output = std::process::Command::new(HISTORY_SCRIPT)
-            .args([project_name, LOOKBACK_DAYS])
-            .output()?;
-        let output = String::from_utf8(output.stdout)?;
+        let since = Utc::now()
+            .checked_sub_signed(Duration::days(LOOKBACK_DAYS))
+            .ok_or("Failed to compute lookback date")?
+            .format("%Y-%m-%d");
+
+        let branches: Vec<GhBranch> = gh_api(&format!("repos/{OWNER}/{repo}/branches"))?;
         let mut commits = Vec::<Commit>::new();
-        for line in output.lines() {
-            let commit: Commit = from_str(line)?;
-            commits.push(commit);
+        for branch in branches {
+            let summaries: Vec<GhCommitSummary> = gh_api(&format!(
+                "repos/{OWNER}/{repo}/commits?sha={}&since={since}",
+                branch.name
+            ))?;
+            for summary in summaries {
+                let detail: GhCommitDetail =
+                    gh_api(&format!("repos/{OWNER}/{repo}/commits/{}", summary.sha))?;
+                commits.push(Commit {
+                    hash: detail.sha,
+                    branch: branch.name.clone(),
+                    subject: detail.commit.message,
+                    date: detail.commit.author.date,
+                    link: detail.html_url,
+                    delta: Delta {
+                        additions: detail.stats.additions,
+                        deletions: detail.stats.deletions,
+                    },
+                });
+            }
         }
         Ok(commits)
     }
@@ -210,6 +228,43 @@ struct Commit {
 struct Delta {
     additions: u32,
     deletions: u32,
+}
+
+fn gh_api<T: DeserializeOwned>(path: &str) -> Result<T, Box<dyn std::error::Error>> {
+    let output = std::process::Command::new("gh")
+        .args(["api", path])
+        .output()?;
+    let body = String::from_utf8(output.stdout)?;
+    Ok(serde_json::from_str(&body)?)
+}
+
+#[derive(Deserialize)]
+struct GhBranch {
+    name: String,
+}
+
+#[derive(Deserialize)]
+struct GhCommitSummary {
+    sha: String,
+}
+
+#[derive(Deserialize)]
+struct GhCommitDetail {
+    sha: String,
+    html_url: String,
+    commit: GhCommitDetailInner,
+    stats: Delta,
+}
+
+#[derive(Deserialize)]
+struct GhCommitDetailInner {
+    message: String,
+    author: GhAuthor,
+}
+
+#[derive(Deserialize)]
+struct GhAuthor {
+    date: DateTime<Utc>,
 }
 
 #[derive(Deserialize, Debug)]

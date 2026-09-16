@@ -1,6 +1,6 @@
 [info]
 description = "Groups project ideas, uses my input and repo history to suggest things to work on for the week"
-repo_link   = ""
+repo_link   = "https://github.com/moleraat/chalk"
 tags        = ["LLM", "Parser", "Task Organization", "Cron"]
 builds_on   = []
 
