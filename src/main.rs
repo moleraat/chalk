@@ -1,9 +1,10 @@
 mod model;
 
 use std::fs;
+use std::ops::Add;
 
 use crate::model::context::{
-    PrioModelOutput, ProjectBundle, ProjectContext, ProjectModelOutput, parse_model_output,
+    PrioModelOutput, ProjectBundle, ProjectContext, ProjectModelOutput, Usage, parse_model_output,
 };
 use crate::model::parser::{Config, Project, ProjectNames};
 
@@ -48,6 +49,7 @@ fn main() {
         return;
     };
     let mut projects = Vec::<ProjectBundle>::new();
+    let mut project_usage = std::collections::BTreeMap::<String, Usage>::new(); // todo: validate project_name keys
     for dir_entry in read_dirs {
         let project = match handle_file(dir_entry, &config, &project_names) {
             Ok(p) => p,
@@ -64,7 +66,9 @@ fn main() {
                 continue;
             }
         };
-        let project_output = match parse_model_output::<ProjectModelOutput>(&project_response) {
+        let (project_output, usage) = match parse_model_output::<ProjectModelOutput>(
+            &project_response,
+        ) {
             Ok(p) => p,
             Err(e) => {
                 eprintln!("Failed to parse project: {e}");
@@ -72,6 +76,7 @@ fn main() {
                 continue;
             }
         };
+        project_usage.insert(project.project_name().to_string(), usage);
         projects.push(ProjectBundle::new(project, project_output));
     }
 
@@ -84,7 +89,7 @@ fn main() {
             return;
         }
     };
-    let prio_output = match parse_model_output::<PrioModelOutput>(&prio_response) {
+    let (prio_output, prio_usage) = match parse_model_output::<PrioModelOutput>(&prio_response) {
         Ok(p) => p,
         Err(e) => {
             eprintln!("Failed to parse prio: {e}");
@@ -94,8 +99,7 @@ fn main() {
     };
 
     dbg!(prio_output);
-
-    // ping
+    print_usage_summary(&project_usage, &prio_usage);
 }
 
 fn handle_file(
@@ -114,3 +118,33 @@ fn handle_file(
     Ok(project)
 }
 
+fn print_usage_summary(project_usage: &std::collections::BTreeMap<String, Usage>, prio_usage: &Usage) {
+    let (p_prompt, p_reasoning, p_total, p_cost) = project_usage.values().fold(
+        (0u32, 0u32, 0u32, 0f64),
+        |(prompt, reasoning, total, cost), u| {
+            (
+                prompt.saturating_add(u.prompt_tokens),
+                reasoning.saturating_add(u.completion_tokens_details.reasoning_tokens),
+                total.saturating_add(u.total_tokens),
+                cost.add(u.cost),
+            )
+        },
+    );
+    let prio_reasoning = prio_usage.completion_tokens_details.reasoning_tokens;
+
+    println!("\n(っ$_$)╮=͟͟͞͞💸 usage summary");
+    println!(
+        "\tprojects  prompt={p_prompt} reasoning={p_reasoning} total={p_total} cost=${p_cost:.4}"
+    );
+    println!(
+        "\tprio      prompt={} reasoning={prio_reasoning} total={} cost=${:.4}",
+        prio_usage.prompt_tokens, prio_usage.total_tokens, prio_usage.cost
+    );
+    println!(
+        "\ttotal     prompt={} reasoning={} total={} cost=${:.4}",
+        p_prompt.saturating_add(prio_usage.prompt_tokens),
+        p_reasoning.saturating_add(prio_reasoning),
+        p_total.saturating_add(prio_usage.total_tokens),
+        p_cost.add(prio_usage.cost)
+    );
+}

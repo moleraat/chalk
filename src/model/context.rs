@@ -34,9 +34,8 @@ struct Opinion {
 
 pub fn parse_model_output<T: DeserializeOwned>(
     raw_output: &str,
-) -> Result<T, Box<dyn std::error::Error>> {
+) -> Result<(T, Usage), Box<dyn std::error::Error>> {
     let model_response = serde_json::from_str::<ModelResponse>(raw_output)?;
-    println!("\t(っ$_$)╮=͟͟͞͞💸 {:#?}", model_response.usage);
     if model_response.choices.len() != 1 {
         return Err("Expected only 1 choice in the response".into());
     }
@@ -47,7 +46,7 @@ pub fn parse_model_output<T: DeserializeOwned>(
         .ok_or("Should never happen, validated choices len")?;
 
     let our_response = serde_json::from_str::<T>(&choice.message.content)?;
-    Ok(our_response)
+    Ok((our_response, model_response.usage))
 }
 
 pub struct ProjectBundle {
@@ -125,6 +124,10 @@ impl ProjectContext {
     pub fn enrich(project: Project) -> Self {
         let history = Self::get_history(&project).ok();
         Self { project, history }
+    }
+
+    pub fn project_name(&self) -> &str {
+        self.project.project_name()
     }
 
     pub fn create_prompt(&self) -> String {
@@ -259,16 +262,16 @@ struct ModelResponse {
 }
 
 #[derive(Deserialize, Debug)]
-struct Usage {
-    prompt_tokens: u32,
-    total_tokens: u32,
-    cost: f64,
-    completion_tokens_details: CompletionTokensDetails,
+pub struct Usage {
+    pub prompt_tokens: u32,
+    pub total_tokens: u32,
+    pub cost: f64,
+    pub completion_tokens_details: CompletionTokensDetails,
 }
 
 #[derive(Deserialize, Debug)]
-struct CompletionTokensDetails {
-    reasoning_tokens: u32,
+pub struct CompletionTokensDetails {
+    pub reasoning_tokens: u32,
 }
 
 #[derive(Deserialize, Debug)]
