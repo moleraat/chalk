@@ -21,9 +21,7 @@ impl ProjectBundle {
         api_key: &str,
     ) -> Result<(PrioModelOutput, Usage), Box<dyn std::error::Error>> {
         let prompt = Self::create_prompt(bundles, config);
-        let response = request::handle_prompt(api_key, &prompt)?;
-        request::parse_model_output(&response)
-            .map_err(|e| format!("{e}\nraw response: {response}").into())
+        request::request_and_parse(api_key, &prompt)
     }
 
     pub fn create_prompt(bundles: &[Self], config: &Config) -> String {
@@ -60,7 +58,7 @@ impl ProjectBundle {
 
             Each project's `score` field reflects the user's original attribute scores combined with the attribute weights above; it is not on the same [0, 100] scale as the priority you derive here, so don't try to reconcile the two numerically. Instead, use the attribute weights above together with each project's SubAgent Opinions to judge whether the subagent's rederived attribute profile still supports the user's original ranking, and explain your priority in those terms.
 
-            Structure your output as json:
+            Carefully structure your output as valid json:
             {{
                 \"order\": [
                     {{
@@ -104,9 +102,7 @@ impl ProjectContext {
         api_key: &str,
     ) -> Result<(ProjectModelOutput, Usage), Box<dyn std::error::Error>> {
         let prompt = self.create_prompt();
-        let response = request::handle_prompt(api_key, &prompt)?;
-        request::parse_model_output(&response)
-            .map_err(|e| format!("{e}\nraw response: {response}").into())
+        request::request_and_parse(api_key, &prompt)
     }
 
     pub fn create_prompt(&self) -> String {

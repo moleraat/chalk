@@ -2,6 +2,7 @@ use serde::Deserialize;
 use serde::de::DeserializeOwned;
 
 const MAX_ATTEMPTS: u32 = 5;
+const MAX_PARSE_ATTEMPTS: u32 = 3;
 const REQUEST_INTERVAL_S: u64 = 3;
 
 pub fn handle_prompt(api_key: &str, prompt: &str) -> Result<String, Box<dyn std::error::Error>> {
@@ -71,6 +72,26 @@ const fn backoff_delay_ms(attempt: u32) -> u64 {
         3 => 2_000,
         4 => 4_000,
         _ => 8_000,
+    }
+}
+
+pub fn request_and_parse<T: DeserializeOwned>(
+    api_key: &str,
+    prompt: &str,
+) -> Result<(T, Usage), Box<dyn std::error::Error>> {
+    let mut attempt: u32 = 0;
+    loop {
+        attempt = attempt.saturating_add(1);
+        let response = handle_prompt(api_key, prompt)?;
+        match parse_model_output(&response) {
+            Ok(parsed) => return Ok(parsed),
+            Err(e) if attempt < MAX_PARSE_ATTEMPTS => {
+                eprintln!(
+                    "\tmalformed model output, retrying ({attempt}/{MAX_PARSE_ATTEMPTS}): {e}"
+                );
+            }
+            Err(e) => return Err(format!("{e}\nraw response: {response}").into()),
+        }
     }
 }
 
