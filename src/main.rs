@@ -79,7 +79,10 @@ fn main() {
             }
         };
 
-    dbg!(prio_output);
+    println!("{prio_output}");
+    if let Err(e) = prio_output.post_as_issue() {
+        eprintln!("Failed to post report issue: {e}");
+    }
     print_usage_summary(&project_usage, &prio_usage);
 }
 
