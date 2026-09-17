@@ -9,24 +9,17 @@ use crate::model::request::Usage;
 
 const API_KEY_ENV_VAR: &str = "OPENROUTER_API_KEY";
 
-fn main() {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Parse config file
     let config_path = std::path::Path::new("config.toml");
-    let Ok(raw_config) = fs::read_to_string(config_path) else {
-        eprintln!("Invalid config path");
-        return;
-    };
-    let Ok(config) = Config::parse(&raw_config) else {
-        eprintln!("Invalid config file");
-        return;
-    };
+    let raw_config =
+        fs::read_to_string(config_path).map_err(|e| format!("Invalid config path: {e}"))?;
+    let config = Config::parse(&raw_config).map_err(|e| format!("Invalid config file: {e}"))?;
 
     // Get ProjectNames
     let project_path = std::path::Path::new("projects/");
-    let Ok(read_dirs_iter) = fs::read_dir(project_path) else {
-        eprintln!("Invalid project path");
-        return;
-    };
+    let read_dirs_iter =
+        fs::read_dir(project_path).map_err(|e| format!("Invalid project path: {e}"))?;
     let read_dirs = read_dirs_iter.collect::<Vec<_>>();
     let mut project_names = std::collections::HashSet::<String>::new();
     for dir_entry in &read_dirs {
@@ -43,10 +36,8 @@ fn main() {
     let project_names = ProjectNames::new(project_names);
 
     // Parse project files, call llm
-    let Ok(api_key) = std::env::var(API_KEY_ENV_VAR) else {
-        eprintln!("{API_KEY_ENV_VAR} not found");
-        return;
-    };
+    let api_key =
+        std::env::var(API_KEY_ENV_VAR).map_err(|e| format!("{API_KEY_ENV_VAR} not found: {e}"))?;
     let mut projects = Vec::<ProjectBundle>::new();
     let mut project_usage = std::collections::BTreeMap::<String, Usage>::new(); // todo: validate project_name keys
     for dir_entry in read_dirs {
@@ -70,20 +61,14 @@ fn main() {
     }
 
     println!(" (╭ರ_•́) prio time");
-    let (prio_output, prio_usage) =
-        match ProjectBundle::request_priority(&projects, &config, &api_key) {
-            Ok(p) => p,
-            Err(e) => {
-                eprintln!("Failed to get priority: {e}");
-                return;
-            }
-        };
-
-    println!("{prio_output}");
-    if let Err(e) = prio_output.post_as_issue() {
-        eprintln!("Failed to post report issue: {e}");
-    }
+    let (prio_output, prio_usage) = ProjectBundle::request_priority(&projects, &config, &api_key)
+        .map_err(|e| format!("Failed to get priority: {e}"))?;
     print_usage_summary(&project_usage, &prio_usage);
+
+    prio_output
+        .post_as_issue()
+        .map_err(|e| format!("Failed to post report issue: {e}"))?;
+    Ok(())
 }
 
 fn handle_file(
