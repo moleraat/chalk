@@ -35,11 +35,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     let project_names = ProjectNames::new(project_names);
 
-    // Parse project files, call llm
-    let api_key =
-        std::env::var(API_KEY_ENV_VAR).map_err(|e| format!("{API_KEY_ENV_VAR} not found: {e}"))?;
-    let mut projects = Vec::<ProjectBundle>::new();
-    let mut project_usage = std::collections::BTreeMap::<String, Usage>::new(); // todo: validate project_name keys
+    // Parse project files and score
+    let mut project_contexts = Vec::<ProjectContext>::new();
+    let mut project_scores = Vec::<(String, u32)>::new();
     for dir_entry in read_dirs {
         let project = match handle_file(dir_entry, &config, &project_names) {
             Ok(p) => p,
@@ -48,6 +46,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 continue;
             }
         };
+
+        project_scores.push((project.project_name().to_string(), project.score()));
+        project_contexts.push(project);
+    }
+    print_user_ranks(project_scores);
+
+    // Call model per project
+    let api_key =
+        std::env::var(API_KEY_ENV_VAR).map_err(|e| format!("{API_KEY_ENV_VAR} not found: {e}"))?;
+    let mut project_bundles = Vec::<ProjectBundle>::new();
+    let mut project_usage = std::collections::BTreeMap::<String, Usage>::new(); // todo: validate project_name keys
+    for project in project_contexts {
         let (project_output, usage) = match project.request_opinion(&api_key) {
             Ok(p) => p,
             Err(e) => {
@@ -57,11 +67,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         };
 
         project_usage.insert(project.project_name().to_string(), usage);
-        projects.push(ProjectBundle::new(project, project_output));
+        project_bundles.push(ProjectBundle::new(project, project_output));
     }
 
     println!(" (╭ರ_•́) prio time");
-    let (prio_output, prio_usage) = ProjectBundle::request_priority(&projects, &config, &api_key)
+    let (prio_output, prio_usage) = ProjectBundle::request_priority(&project_bundles, &config, &api_key)
         .map_err(|e| format!("Failed to get priority: {e}"))?;
     print_usage_summary(&project_usage, &prio_usage);
 
@@ -85,6 +95,13 @@ fn handle_file(
 
     let project = ProjectContext::enrich(project);
     Ok(project)
+}
+
+fn print_user_ranks(mut project_scores: Vec<(String, u32)>) {
+    project_scores.sort_by_key(|a| a.1);
+    for (i, p) in project_scores.into_iter().enumerate() {
+        println!("{} **{}** ({})", i.saturating_add(1), p.0, p.1);
+    }
 }
 
 fn print_usage_summary(

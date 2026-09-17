@@ -84,7 +84,7 @@ impl Project {
             .collect();
         let attributes: BTreeMap<Attribute, Score> = attributes?;
 
-        let score = Self::score(&attributes, config)?;
+        let score = Self::calc_score(&attributes, config)?;
 
         Ok(Self {
             name,
@@ -102,7 +102,11 @@ impl Project {
         self.info.repo_link.as_deref()
     }
 
-    fn score(attributes: &BTreeMap<Attribute, Score>, config: &Config) -> Result<u32, String> {
+    pub const fn score(&self) -> u32 {
+        self.score
+    }
+
+    fn calc_score(attributes: &BTreeMap<Attribute, Score>, config: &Config) -> Result<u32, String> {
         let mut total = 0u32;
         for (attribute, score) in attributes {
             let weight = config

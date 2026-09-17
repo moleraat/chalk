@@ -97,6 +97,10 @@ impl ProjectContext {
         self.project.project_name()
     }
 
+    pub const fn score(&self) -> u32 {
+        self.project.score()
+    }
+
     pub fn request_opinion(
         &self,
         api_key: &str,
