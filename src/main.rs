@@ -98,9 +98,9 @@ fn handle_file(
 }
 
 fn print_user_ranks(mut project_scores: Vec<(String, u32)>) {
-    project_scores.sort_by_key(|a| a.1);
+    project_scores.sort_by_key(|a| std::cmp::Reverse(a.1));
     for (i, p) in project_scores.into_iter().enumerate() {
-        println!("{} **{}** ({})", i.saturating_add(1), p.0, p.1);
+        println!("{}. **{}** ({})", i.saturating_add(1), p.0, p.1);
     }
 }
 

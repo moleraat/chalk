@@ -67,6 +67,14 @@ fn fetch_commit(
     })
 }
 
+pub fn days_since_last_commit(commits: &[Commit]) -> Option<i64> {
+    commits
+        .iter()
+        .map(|c| c.date)
+        .max()
+        .map(|last| Utc::now().signed_duration_since(last).num_days())
+}
+
 pub fn create_issue(title: &str, body: &str) -> Result<(), Box<dyn std::error::Error>> {
     let output = std::process::Command::new("gh")
         .args(["issue", "create", "--title", title, "--body", body])

@@ -40,21 +40,24 @@ impl ProjectBundle {
                 prompt,
                 "
                 Project: {:#?}\n\
-                History: {:#?}\n\
+                Days since last commit: {:?}\n\
                 SubAgent Opinions: {:#?}\n\
                 SubAgent Notes: {:#?}\n\n\
                 ",
                 project.context.project,
-                project.context.history,
+                project.context.days_since_last_commit(),
                 project.output.opinions,
                 project.output.notes
             );
         }
 
+        let bundle_count = bundles.len();
         let _ = write!(
             prompt,
             "
             \nUsing all project information, independently derive a priority score for each project (bounded [0, 100]), where a higher score means the project should be worked on sooner. The gap between two projects' scores should reflect how close a call it is — close scores mean it's a toss-up, a large gap means one is clearly more urgent. List `order` sorted from highest score to lowest.
+
+            There are exactly {bundle_count} projects listed above. Your `order` array MUST include all {bundle_count} of them, each exactly once — do not omit, merge, or duplicate any project.
 
             Each project's `score` field reflects the user's original attribute scores combined with the attribute weights above; it is not on the same [0, 100] scale as the priority you derive here, so don't try to reconcile the two numerically. Instead, use the attribute weights above together with each project's SubAgent Opinions to judge whether the subagent's rederived attribute profile still supports the user's original ranking, and explain your priority in those terms.
 
@@ -99,6 +102,10 @@ impl ProjectContext {
 
     pub const fn score(&self) -> u32 {
         self.project.score()
+    }
+
+    pub fn days_since_last_commit(&self) -> Option<i64> {
+        self.history.as_deref().and_then(github::days_since_last_commit)
     }
 
     pub fn request_opinion(
